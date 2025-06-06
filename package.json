@@ -21,10 +21,13 @@
     "url": "git+https://github.com/mike3lol/n8n-nodes-databricks.git"
   },
   "main": "dist/index.js",
+  "_moduleAliases": {
+    "@utils": "dist/utils"
+  },
   "scripts": {
     "build": "rm -rf dist/ && tsc -p tsconfig.json && tsc-alias -p tsconfig.json && gulp build:icons",
     "start": "node -r module-alias/register dist/index.js",
-    "dev": "tsc --watch",
+    "dev": "NODE_ENV=development ts-node-dev -r tsconfig-paths/register --respawn --transpile-only ./src/index.ts",
     "format": "prettier --write .",
     "lint": "eslint .",
     "lintfix": "eslint . --fix",
@@ -67,6 +70,8 @@
     "gulp-cli": "^3.0.0",
     "module-alias": "^2.2.3",
     "n8n-workflow": "1.86",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
   }
 }
