@@ -1,0 +1,54 @@
+{
+	"compilerOptions": {
+		"strict": true,
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"target": "es2019",
+		"lib": [
+			"es2020",
+			"dom"  // Added for fetch API support
+		],
+		"removeComments": true,
+		"useUnknownInCatchVariables": false,
+		"forceConsistentCasingInFileNames": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"strictNullChecks": true,
+		"preserveConstEnums": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"incremental": true,
+		"declaration": true,
+		"sourceMap": true,
+		"skipLibCheck": true,
+		"outDir": "dist",
+		"rootDir": ".",
+		"baseUrl": ".",
+		"paths": {
+			"@utils/*": ["utils/*"],  
+			"*": ["node_modules/*"]
+		},
+		"types": [
+			"node",
+			"jest"
+		],
+		"typeRoots": [
+			"./node_modules/@types",
+			"./node_modules/n8n-workflow",
+			"./types"
+		]
+	},
+	"include": [
+		"nodes/**/*",
+		"credentials/**/*",
+		"nodes/**/*.json",
+		"package.json",
+		"utils/**/*",
+		"types/**/*.d.ts",
+	],
+	"exclude": [
+		"node_modules/**/*",
+		"dist/**/*"
+	]
+}

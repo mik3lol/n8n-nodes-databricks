@@ -1,0 +1,72 @@
+{
+  "name": "n8n-nodes-databricks",
+  "version": "0.1.1",
+  "description": "Databricks node for n8n",
+  "keywords": [
+    "n8n",
+    "n8n-node",
+    "n8n-community-node-package",
+    "databricks",
+    "model-serving",
+    "machine-learning"
+  ],
+  "license": "MIT",
+  "homepage": "https://n8n.io",
+  "author": {
+    "name": "Mike Lo",
+    "email": "mike.lo@databricks.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mike3lol/n8n-nodes-databricks.git"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "rm -rf dist/ && tsc -p tsconfig.json && tsc-alias -p tsconfig.json && gulp build:icons",
+    "start": "node -r module-alias/register dist/index.js",
+    "dev": "tsc --watch",
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "lintfix": "eslint . --fix",
+    "prepublishOnly": "npm run build",
+    "watch": "npm run build -- --watch"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/Databricks.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Databricks/Databricks.node.js",
+      "dist/nodes/llms/LmChatDatabricks/LmChatDatabricks.node.js"
+    ]
+  },
+  "dependencies": {
+    "@langchain/community": "0.3.41",
+    "@langchain/core": "^0.3.43",
+    "@langchain/openai": "0.3.17",
+    "@langchain/textsplitters": "0.1.0",
+    "@n8n/json-schema-to-zod": "^1.1.0",
+    "@types/json-schema": "^7.0.15",
+    "generate-schema": "2.6.0",
+    "help": "^3.0.2",
+    "jest-mock-extended": "^4.0.0-beta1",
+    "lodash": "^4.17.21",
+    "node-fetch": "^2.7.0",
+    "tmp-promise": "3.0.3",
+    "tsc-alias": "^1.8.15",
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.16",
+    "gulp": "^5.0.0",
+    "gulp-cli": "^3.0.0",
+    "module-alias": "^2.2.3",
+    "n8n-workflow": "1.86",
+    "typescript": "^5.8.3"
+  }
+}

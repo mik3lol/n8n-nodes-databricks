@@ -1,0 +1,41 @@
+export const modelEndpointDescription = {
+    displayName: 'Model Endpoint',
+    name: 'modelEndpoint',
+    type: 'object',
+    default: {},
+    description: 'Description of the model endpoint used in Databricks model serving',
+    properties: [
+        {
+            displayName: 'Model Name',
+            name: 'modelName',
+            type: 'string',
+            default: '',
+            required: true,
+            description: 'The name of the model to be served',
+        },
+        {
+            displayName: 'Version',
+            name: 'version',
+            type: 'string',
+            default: '',
+            required: true,
+            description: 'The version of the model to be served',
+        },
+        {
+            displayName: 'Input Data',
+            name: 'inputData',
+            type: 'json',
+            default: {},
+            required: true,
+            description: 'The input data for the model inference',
+        },
+        {
+            displayName: 'Output Data',
+            name: 'outputData',
+            type: 'json',
+            default: {},
+            required: false,
+            description: 'The expected output data from the model inference',
+        },
+    ],
+};

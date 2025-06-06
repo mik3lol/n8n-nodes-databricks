@@ -1,0 +1,20 @@
+{
+    "node:n8n-nodes-databricks-databricks-model-serving": {
+        "name": "Databricks Model Serving",
+        "author": "Your Name",
+        "description": "A node to interact with Databricks Model Serving API endpoints",
+        "createdAt": "2024-03-29",
+        "nodeVersion": 1,
+        "defaults": {
+            "name": "Databricks Model Serving"
+        },
+        "packageName": "n8n-nodes-databricks",
+        "categories": [
+            "Machine Learning",
+            "Development"
+        ],
+        "version": 1,
+        "subtitle": "Use Databricks Model Serving endpoints to make predictions",
+        "icon": "file:databricks.svg"
+    }
+}
