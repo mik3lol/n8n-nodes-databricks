@@ -51,10 +51,13 @@
     "@langchain/textsplitters": "0.1.0",
     "@n8n/json-schema-to-zod": "^1.1.0",
     "@types/json-schema": "^7.0.15",
+    "@types/node": "^20.19.1",
     "generate-schema": "2.6.0",
     "help": "^3.0.2",
     "jest-mock-extended": "^4.0.0-beta1",
     "lodash": "^4.17.21",
+    "n8n-core": "^0.125.0",
+    "n8n-workflow": "1.86",
     "node-fetch": "^2.7.0",
     "tmp-promise": "3.0.3",
     "tsc-alias": "^1.8.15",
@@ -66,7 +69,6 @@
     "gulp": "^5.0.0",
     "gulp-cli": "^3.0.0",
     "module-alias": "^2.2.3",
-    "n8n-workflow": "1.86",
     "typescript": "^5.8.3"
   }
 }
