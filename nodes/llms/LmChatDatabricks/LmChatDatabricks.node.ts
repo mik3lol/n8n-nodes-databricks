@@ -68,12 +68,18 @@ export class LmChatDatabricks implements INodeType {
                                             property: 'endpoints',
                                         },
                                     },
+                                    // {
+                                    //     type: 'filter',
+                                    //     properties: {
+                                    //         pass: '={{$responseItem.config.served_entities?.some(entity => entity.external_model?.task === "llm/v1/chat") || $responseItem.config.served_entities?.some(entity => entity.foundation_model?.name?.match(/chat|gpt|llm|language/i))}}',
+                                    //     },
+                                    // },
                                     {
                                         type: 'setKeyValue',
                                         properties: {
                                             name: '={{$responseItem.name}}',
                                             value: '={{$responseItem.name}}',
-                                            description: '={{$responseItem.config.served_models[0].name}}',
+                                            description: '={{($responseItem.config.served_entities || []).map(entity => entity.external_model?.name || entity.foundation_model?.name).filter(Boolean).join(", ")}}',
                                         },
                                     },
                                     {

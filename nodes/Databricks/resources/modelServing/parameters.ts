@@ -4,7 +4,7 @@ export const modelServingParameters: INodeProperties[] = [
     {
         displayName: 'Endpoint Name',
         name: 'endpointName',
-        type: 'string',
+        type: 'options',
         required: true,
         default: '',
         description: 'Name of the serving endpoint',
@@ -12,6 +12,40 @@ export const modelServingParameters: INodeProperties[] = [
             show: {
                 resource: ['modelServing'],
                 operation: ['getEndpoint', 'updateEndpoint', 'deleteEndpoint', 'queryEndpoint', 'getEndpointLogs'],
+            },
+        },
+        typeOptions: {
+            loadOptions: {
+                routing: {
+                    request: {
+                        method: 'GET',
+                        url: '/api/2.0/serving-endpoints',
+                    },
+                    output: {
+                        postReceive: [
+                            {
+                                type: 'rootProperty',
+                                properties: {
+                                    property: 'endpoints', // Changed from 'serving_endpoints' to 'endpoints'
+                                },
+                            },
+                            {
+                                type: 'setKeyValue',
+                                properties: {
+                                    name: '={{$responseItem.name}}',
+                                    value: '={{$responseItem.name}}',
+                                    description: '={{($responseItem.config.served_entities || []).map(entity => entity.external_model?.name || entity.foundation_model?.name).filter(Boolean).join(", ")}}',
+                                },
+                            },
+                            {
+                                type: 'sort',
+                                properties: {
+                                    key: 'name',
+                                },
+                            },
+                        ],
+                    },
+                },
             },
         },
     },
@@ -48,8 +82,9 @@ export const modelServingParameters: INodeProperties[] = [
         name: 'inputs',
         type: 'json',
         required: true,
-        default: '',
-        description: 'Input data for model inference (in JSON format)',
+        default: '["Hello, how are you?"]',
+        placeholder: '["Hello, how are you?"]',
+        description: 'Input data for the model in JSON format. For most models, this should be an array of strings.',
         displayOptions: {
             show: {
                 resource: ['modelServing'],

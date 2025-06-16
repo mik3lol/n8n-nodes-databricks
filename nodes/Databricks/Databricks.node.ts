@@ -1,4 +1,6 @@
 import type {
+    IExecuteFunctions,
+    INodeExecutionData,
     INodeType,
     INodeTypeDescription,
 } from 'n8n-workflow';
@@ -91,4 +93,65 @@ export class Databricks implements INodeType {
             ...vectorSearchParameters,
         ],
     };    
+
+    async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+        const items = this.getInputData();
+        const returnData: INodeExecutionData[] = [];
+        
+        for (let i = 0; i < items.length; i++) {
+            const resource = this.getNodeParameter('resource', i) as string;
+            const operation = this.getNodeParameter('operation', i) as string;
+
+            if (resource === 'files' && operation === 'uploadFile') {
+                const dataFieldName = this.getNodeParameter('dataFieldName', i) as string;
+                const catalog = this.getNodeParameter('catalog', i) as string;
+                const schema = this.getNodeParameter('schema', i) as string;
+                const volume = this.getNodeParameter('volume', i) as string;
+                const path = this.getNodeParameter('path', i) as string;
+                
+                try {
+                    // Get credentials
+                    const credentials = await this.getCredentials('databricks');
+                    const host = credentials.host as string;
+
+                    // Get binary data using getBinaryDataBuffer
+                    const binaryData = await this.helpers.getBinaryDataBuffer(i, dataFieldName);
+                    
+                    // Make the upload request
+                    await this.helpers.httpRequest({
+                        method: 'PUT',
+                        url: `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${path}`,
+                        body: binaryData,
+                        headers: {
+                            'Authorization': `Bearer ${credentials.token}`,
+                            'Content-Type': items[i].binary?.[dataFieldName]?.mimeType || 'application/octet-stream',
+                        },
+                        encoding: 'arraybuffer',
+                    });
+
+                    // Store the result
+                    returnData.push({
+                        json: { 
+                            success: true,
+                            message: `File uploaded successfully to ${path}`
+                        }
+                    });
+                    
+                    continue;
+                } catch (error) {
+                    if (!items[i].binary?.[dataFieldName]) {
+                        throw new Error(`No binary data found in field "${dataFieldName}"`);
+                    }
+                    throw error;
+                }
+            }
+
+            returnData.push({
+                ...items[i],
+                json: items[i].json,
+            });
+        }
+
+        return [returnData];
+    }
 }

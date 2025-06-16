@@ -11,10 +11,6 @@ import { Embeddings } from '@langchain/core/embeddings';
 import { logWrapper } from '@utils/logWrapper';
 import { getConnectionHintNoticeField } from '@utils/sharedFields';
 
-interface DatabricksEmbeddingsResponse {
-	predictions: number[][];
-}
-
 class DatabricksEmbeddings extends Embeddings {
 	private apiKey: string;
 	private host: string;
@@ -32,14 +28,14 @@ class DatabricksEmbeddings extends Embeddings {
 	}
 
 	async embedDocuments(texts: string[]): Promise<number[][]> {
-		const response = await fetch(`${this.host}/api/2.0/serving-endpoints/${this.endpoint}/invocations`, {
+		const response = await fetch(`${this.host}/serving-endpoints/${this.endpoint}/invocations`, {
 			method: 'POST',
 			headers: {
 				'Authorization': `Bearer ${this.apiKey}`,
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				inputs: texts,
+				input: texts,
 			}),
 		});
 
@@ -48,12 +44,23 @@ class DatabricksEmbeddings extends Embeddings {
 			throw new Error(`Databricks API error (${response.status}): ${error}`);
 		}
 
-		const result = await response.json() as DatabricksEmbeddingsResponse;
-		return result.predictions;
+		const result = await response.json();
+		// Handle new API response format
+		if (Array.isArray(result.data)) {
+			return result.data.map((item: any) => item.embedding);
+		}
+		// fallback for old format
+		if (Array.isArray(result.predictions)) {
+			return result.predictions;
+		}
+		throw new Error('Unexpected Databricks embeddings API response format.');
 	}
 
 	async embedQuery(text: string): Promise<number[]> {
 		const embeddings = await this.embedDocuments([text]);
+		if (!embeddings || !embeddings[0]) {
+			throw new Error('No embedding returned from Databricks API. Check your endpoint and input.');
+		}
 		return embeddings[0];
 	}
 }
@@ -65,7 +72,7 @@ export class EmbeddingsDatabricks implements INodeType {
 		icon: { light: 'file:databricks.svg', dark: 'file:databricks.dark.svg' },
 		group: ['transform'],
 		version: 1,
-		description: 'Use Databricks Foundation Models for Embeddings',
+		description: 'Use Embeddings Databricks',
 		defaults: {
 			name: 'Embeddings Databricks',
 		},
@@ -125,12 +132,12 @@ export class EmbeddingsDatabricks implements INodeType {
 											property: 'endpoints',
 										},
 									},
-									{
-										type: 'filter',
-										properties: {
-											pass: '={{$responseItem.config.served_entities?.some(entity => entity.external_model?.task === "llm/v1/embeddings") || $responseItem.config.served_entities?.some(entity => entity.foundation_model?.name?.match(/embedding|embed|text-embedding|vector/i))}}',
-										},
-									},
+									// {
+									// 	type: 'filter',
+									// 	properties: {
+									// 		pass: '={{$responseItem.config.served_entities?.some(entity => entity.external_model?.task === "llm/v1/embeddings") || $responseItem.config.served_entities?.some(entity => entity.foundation_model?.name?.match(/embedding|embed|text-embedding|vector/i))}}',
+									// 	},
+									// },
 									{
 										type: 'setKeyValue',
 										properties: {

@@ -7,13 +7,13 @@ export const filesParameters: INodeProperties[] = [
         type: 'options',
         required: true,
         default: '',
-        description: 'Select a Unity Catalog to access files from',
+        description: 'Select a catalog to access',
         typeOptions: {
             loadOptions: {
                 routing: {
                     request: {
                         method: 'GET',
-                        url: '/api/2.1/unity-catalog/catalogs',
+                        url: '=/api/2.1/unity-catalog/catalogs',
                     },
                     output: {
                         postReceive: [
@@ -155,55 +155,16 @@ export const filesParameters: INodeProperties[] = [
                 ],
             },
         },
-        description: 'Name of the file (e.g., "myfile.txt" or "folder/myfile.txt")',
-        placeholder: 'myfile.txt',
+        description: 'Path to the file within the volume (e.g. "folder/file.txt" or "file.txt"). Do not include leading slash.',
+        placeholder: 'folder/file.txt',
     },
     {
-        displayName: 'Binary Property',
-        name: 'binaryPropertyName',
+        displayName: 'Input Data Field Name',
+        name: 'dataFieldName',
         type: 'string',
         default: 'data',
         required: true,
-        displayOptions: {
-            show: {
-                operation: ['uploadFile'],
-            },
-        },
-        description: 'Name of the binary property that contains the file data to upload',
-    },
-    {
-        displayName: 'Content Type',
-        name: 'contentType',
-        type: 'options',
-        options: [
-            {
-                name: 'Application/Octet-Stream',
-                value: 'application/octet-stream',
-                description: 'Binary data',
-            },
-            {
-                name: 'Text/Plain',
-                value: 'text/plain',
-                description: 'Plain text',
-            },
-            {
-                name: 'Application/JSON',
-                value: 'application/json',
-                description: 'JSON data',
-            },
-            {
-                name: 'Application/XML',
-                value: 'application/xml',
-                description: 'XML data',
-            },
-            {
-                name: 'Image/JPEG',
-                value: 'image/jpeg',
-                description: 'Image data (e.g. PNG, JPEG)',
-            },
-        ],
-        default: 'application/octet-stream',
-        description: 'The content type of the file being uploaded',
+        description: 'Name of the field from input that contains the binary data to be uploaded',
         displayOptions: {
             show: {
                 resource: ['files'],
@@ -211,6 +172,7 @@ export const filesParameters: INodeProperties[] = [
             },
         },
     },
+
     {
         displayName: 'Directory Name',
         name: 'path',
@@ -225,8 +187,8 @@ export const filesParameters: INodeProperties[] = [
                 ],
             },
         },
-        description: 'Name of the directory to create or delete (e.g., "folder1" or "folder1/subfolder")',
-        placeholder: 'myfolder',
+        description: 'Path to directory within the volume (e.g. "folder1" or "folder1/subfolder"). Do not include leading slash.',
+        placeholder: 'folder1',
     },
     {
         displayName: 'Additional Fields',

@@ -2,17 +2,50 @@ import type { INodeProperties } from 'n8n-workflow';
 
 export const databricksSqlParameters: INodeProperties[] = [
     {
-        displayName: 'Warehouse ID',
+        displayName: 'Warehouse',
         name: 'warehouseId',
-        type: 'string',
+        type: 'options',
         required: true,
         default: '',
-        description: 'The ID of the SQL warehouse to use',
+        description: 'The SQL warehouse to use',
         displayOptions: {
             show: {
-                resource: [
-                    'databricksSql'
-                ],
+                resource: ['databricksSql'],
+                operation: ['executeQuery'],
+            },
+        },
+        typeOptions: {
+            loadOptions: {
+                routing: {
+                    request: {
+                        method: 'GET',
+                        url: '/api/2.0/sql/warehouses',
+                    },
+                    output: {
+                        postReceive: [
+                            {
+                                type: 'rootProperty',
+                                properties: {
+                                    property: 'warehouses',
+                                },
+                            },
+                            {
+                                type: 'setKeyValue',
+                                properties: {
+                                    name: '={{$responseItem.name}}',
+                                    value: '={{$responseItem.id}}',
+                                    description: '={{$responseItem.size || ""}}',
+                                },
+                            },
+                            {
+                                type: 'sort',
+                                properties: {
+                                    key: 'name',
+                                },
+                            },
+                        ],
+                    },
+                },
             },
         },
     },
@@ -50,42 +83,5 @@ export const databricksSqlParameters: INodeProperties[] = [
                 ],
             },
         },
-    },
-    {
-        displayName: 'Additional Fields',
-        name: 'additionalFields',
-        type: 'collection',
-        placeholder: 'Add Field',
-        default: {},
-        displayOptions: {
-            show: {
-                resource: [
-                    'databricksSql',
-                ],
-            },
-        },
-        options: [
-            {
-                displayName: 'Catalog',
-                name: 'catalog',
-                type: 'string',
-                default: '',
-                description: 'The catalog to use for the query',
-            },
-            {
-                displayName: 'Schema',
-                name: 'schema',
-                type: 'string',
-                default: '',
-                description: 'The schema to use for the query',
-            },
-            {
-                displayName: 'Timeout',
-                name: 'timeout',
-                type: 'number',
-                default: 60,
-                description: 'Query timeout in seconds',
-            },
-        ],
     },
 ];
