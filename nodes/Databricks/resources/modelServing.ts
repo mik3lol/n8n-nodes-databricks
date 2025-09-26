@@ -92,7 +92,7 @@ export const modelServingOperations: INodeProperties = {
             routing: {
                 request: {
                     method: 'POST',
-                    url: '/serving-endpoints/{{$parameter.endpointName}}/invocations',
+                    url: '/api/2.0/serving-endpoints/={{$parameter.endpointName}}/invocations',
                     body: {
                         inputs: '={{$parameter.inputs}}',
                     },
