@@ -1,147 +1,23 @@
 import type { INodeProperties } from 'n8n-workflow';
 
 export const filesParameters: INodeProperties[] = [
+	{
+		displayName: 'Volume Path',
+		name: 'volumePath',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: 'catalog.schema.volume',
+		description: 'Full path to the volume in format: catalog.schema.volume',
+		displayOptions: {
+			show: {
+				resource: ['files'],
+			},
+		},
+	},
     {
-        displayName: 'Catalog',
-        name: 'catalog',
-        type: 'options',
-        required: true,
-        default: '',
-        description: 'Select a catalog to access',
-        typeOptions: {
-            loadOptions: {
-                routing: {
-                    request: {
-                        method: 'GET',
-                        url: '=/api/2.1/unity-catalog/catalogs',
-                    },
-                    output: {
-                        postReceive: [
-                            {
-                                type: 'rootProperty',
-                                properties: {
-                                    property: 'catalogs',
-                                },
-                            },
-                            {
-                                type: 'setKeyValue',
-                                properties: {
-                                    name: '={{$responseItem.name}}',
-                                    value: '={{$responseItem.name}}',
-                                },
-                            },
-                            {
-                                type: 'sort',
-                                properties: {
-                                    key: 'name',
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-        displayOptions: {
-            show: {
-                resource: ['files'],
-            },
-        },
-    },
-    {
-        displayName: 'Schema',
-        name: 'schema',
-        type: 'options',
-        required: true,
-        default: '',
-        description: 'Select a schema from the chosen catalog',
-        typeOptions: {
-            loadOptions: {
-                routing: {
-                    request: {
-                        method: 'GET',
-                        url: '=/api/2.1/unity-catalog/schemas?catalog_name={{$parameter["catalog"]}}',
-                    },
-                    output: {
-                        postReceive: [
-                            {
-                                type: 'rootProperty',
-                                properties: {
-                                    property: 'schemas',
-                                },
-                            },
-                            {
-                                type: 'setKeyValue',
-                                properties: {
-                                    name: '={{$responseItem.name}}',
-                                    value: '={{$responseItem.name}}',
-                                },
-                            },
-                            {
-                                type: 'sort',
-                                properties: {
-                                    key: 'name',
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-        displayOptions: {
-            show: {
-                resource: ['files'],
-            },
-        },
-    },
-    {
-        displayName: 'Volume',
-        name: 'volume',
-        type: 'options',
-        required: true,
-        default: '',
-        description: 'Select a volume from the chosen catalog and schema',
-        typeOptions: {
-            loadOptions: {
-                routing: {
-                    request: {
-                        method: 'GET',
-                        url: '=/api/2.1/unity-catalog/volumes?catalog_name={{$parameter["catalog"]}}&schema_name={{$parameter["schema"]}}',
-                    },
-                    output: {
-                        postReceive: [
-                            {
-                                type: 'rootProperty',
-                                properties: {
-                                    property: 'volumes',
-                                },
-                            },
-                            {
-                                type: 'setKeyValue',
-                                properties: {
-                                    name: '={{$responseItem.name}}',
-                                    value: '={{$responseItem.name}}',
-                                },
-                            },
-                            {
-                                type: 'sort',
-                                properties: {
-                                    key: 'name',
-                                },
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-        displayOptions: {
-            show: {
-                resource: ['files'],
-            },
-        },
-    },
-    {
-        displayName: 'File Name',
-        name: 'path',
+        displayName: 'File Path',
+        name: 'filePath',
         type: 'string',
         required: true,
         default: '',
@@ -174,8 +50,8 @@ export const filesParameters: INodeProperties[] = [
     },
 
     {
-        displayName: 'Directory Name',
-        name: 'path',
+        displayName: 'Directory Path',
+        name: 'directoryPath',
         type: 'string',
         required: true,
         default: '',
@@ -184,6 +60,7 @@ export const filesParameters: INodeProperties[] = [
                 operation: [
                     'createDirectory',
                     'deleteDirectory',
+                    'listDirectory',
                 ],
             },
         },

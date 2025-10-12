@@ -40,7 +40,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // Helper function to get cache key (includes host to handle multiple accounts)
 function getCacheKey(host: string, type: 'warehouses' | 'endpoints'): string {
-  return `${host}:${type}`;
+	return `${host}:${type}`;
 }
 
 // Helper function to check if cache is valid
@@ -529,17 +529,23 @@ export class Databricks implements INodeType {
 
               if (resource === 'files' && operation === 'uploadFile') {
                   const dataFieldName = this.getNodeParameter('dataFieldName', i) as string;
-                  const catalog = this.getNodeParameter('catalog', i) as string;
-                  const schema = this.getNodeParameter('schema', i) as string;
-                  const volume = this.getNodeParameter('volume', i) as string;
-                  const path = this.getNodeParameter('path', i) as string;
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const filePath = this.getNodeParameter('filePath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
 
                   this.logger.debug('File upload parameters', {
                       dataFieldName,
+                      volumePath,
                       catalog,
                       schema,
                       volume,
-                      path
+                      filePath
                   });
 
                   const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
@@ -548,13 +554,13 @@ export class Databricks implements INodeType {
 
                   this.logger.debug('Starting file upload', {
                       host,
-                      path,
+                      filePath,
                       dataSize: binaryData.length
                   });
 
                   await this.helpers.httpRequest({
                       method: 'PUT',
-                      url: `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${path}`,
+                      url: `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${filePath}`,
                       body: binaryData,
                       headers: {
                           Authorization: `Bearer ${credentials.token}`,
@@ -563,12 +569,258 @@ export class Databricks implements INodeType {
                       encoding: 'arraybuffer',
                   });
 
-                  this.logger.debug('File upload successful', { path });
+                  this.logger.debug('File upload successful', { filePath });
                   returnData.push({
                       json: {
                           success: true,
-                          message: `File uploaded successfully to ${path}`,
+                          message: `File uploaded successfully to ${filePath}`,
                       },
+                  });
+              } else if (resource === 'files' && operation === 'downloadFile') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const filePath = this.getNodeParameter('filePath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  this.logger.debug('Downloading file', {
+                      volumePath,
+                      catalog,
+                      schema,
+                      volume,
+                      filePath,
+                  });
+
+                  const downloadUrl = `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${filePath}`;
+
+                  try {
+                      const response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: downloadUrl,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          encoding: 'arraybuffer',
+                          returnFullResponse: true,
+                      });
+
+                      // Extract filename from filePath
+                      const fileName = filePath.split('/').pop() || 'downloaded-file';
+                      
+                      // Get content type from response headers
+                      const contentType = response.headers['content-type'] || 'application/octet-stream';
+
+                      // Convert arraybuffer to buffer
+                      const buffer = Buffer.from(response.body as ArrayBuffer);
+
+                      this.logger.debug('File downloaded successfully', {
+                          fileName,
+                          size: buffer.length,
+                          contentType,
+                      });
+
+                      returnData.push({
+                          json: {
+                              fileName,
+                              size: buffer.length,
+                              contentType,
+                              catalog,
+                              schema,
+                              volume,
+                              filePath,
+                          },
+                          binary: {
+                              data: {
+                                  data: buffer.toString('base64'),
+                                  mimeType: contentType,
+                                  fileName,
+                              },
+                          },
+                          pairedItem: { item: i },
+                      });
+                  } catch (error) {
+                      if (this.continueOnFail()) {
+                          returnData.push({
+                              json: {
+                                  error: error.message,
+                                  catalog,
+                                  schema,
+                                  volume,
+                                  filePath,
+                              },
+                              pairedItem: { item: i },
+                          });
+                      } else {
+                          throw error;
+                      }
+                  }
+              } else if (resource === 'files' && operation === 'deleteFile') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const filePath = this.getNodeParameter('filePath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  await this.helpers.httpRequest({
+                      method: 'DELETE',
+                      url: `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${filePath}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      json: true,
+                  });
+
+                  returnData.push({
+                      json: {
+                          success: true,
+                          message: `File deleted successfully: ${filePath}`,
+                          volumePath,
+                          filePath,
+                      },
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'files' && operation === 'getFileInfo') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const filePath = this.getNodeParameter('filePath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  const response = await this.helpers.httpRequest({
+                      method: 'HEAD',
+                      url: `${host}/api/2.0/fs/files/Volumes/${catalog}/${schema}/${volume}/${filePath}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      returnFullResponse: true,
+                  });
+
+                  returnData.push({
+                      json: {
+                          volumePath,
+                          filePath,
+                          headers: response.headers,
+                          contentLength: response.headers['content-length'],
+                          contentType: response.headers['content-type'],
+                          lastModified: response.headers['last-modified'],
+                      },
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'files' && operation === 'listDirectory') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const directoryPath = this.getNodeParameter('directoryPath', i) as string;
+                  const additionalFields = this.getNodeParameter('additionalFields', i, {}) as any;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  const queryParams: any = {};
+                  if (additionalFields.pageSize) {
+                      queryParams.page_size = additionalFields.pageSize;
+                  }
+                  if (additionalFields.pageToken) {
+                      queryParams.page_token = additionalFields.pageToken;
+                  }
+
+                  const response = await this.helpers.httpRequest({
+                      method: 'GET',
+                      url: `${host}/api/2.0/fs/directories/Volumes/${catalog}/${schema}/${volume}/${directoryPath}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      qs: queryParams,
+                      json: true,
+                  });
+
+                  returnData.push({
+                      json: response,
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'files' && operation === 'createDirectory') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const directoryPath = this.getNodeParameter('directoryPath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  await this.helpers.httpRequest({
+                      method: 'PUT',
+                      url: `${host}/api/2.0/fs/directories/Volumes/${catalog}/${schema}/${volume}/${directoryPath}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      json: true,
+                  });
+
+                  returnData.push({
+                      json: {
+                          success: true,
+                          message: `Directory created successfully: ${directoryPath}`,
+                          volumePath,
+                          directoryPath,
+                      },
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'files' && operation === 'deleteDirectory') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const volumePath = this.getNodeParameter('volumePath', i) as string;
+                  const directoryPath = this.getNodeParameter('directoryPath', i) as string;
+
+                  // Parse volume path
+                  const parts = volumePath.split('.');
+                  if (parts.length !== 3) {
+                      throw new Error('Volume path must be in format: catalog.schema.volume (e.g., main.default.my_volume)');
+                  }
+                  const [catalog, schema, volume] = parts;
+
+                  await this.helpers.httpRequest({
+                      method: 'DELETE',
+                      url: `${host}/api/2.0/fs/directories/Volumes/${catalog}/${schema}/${volume}/${directoryPath}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      json: true,
+                  });
+
+                  returnData.push({
+                      json: {
+                          success: true,
+                          message: `Directory deleted successfully: ${directoryPath}`,
+                          volumePath,
+                          directoryPath,
+                      },
+                      pairedItem: { item: i },
                   });
               } else if (resource === 'genie') {
                   const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
