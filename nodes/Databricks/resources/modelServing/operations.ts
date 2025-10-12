@@ -14,17 +14,8 @@ export const modelServingOperations: INodeProperties = {
         {
             name: 'Query Endpoint',
             value: 'queryEndpoint',
-            description: 'Query a serving endpoint',
+            description: 'Query a serving endpoint. The input format is automatically detected from the endpoint schema.',
             action: 'Query a serving endpoint',
-            routing: {
-                request: {
-                    method: 'POST',
-                    url: '/api/2.0/serving-endpoints/{{$parameter.endpointName}}/invocations',
-                    body: {
-                        inputs: '={{$parameter.inputs}}',
-                    },
-                },
-            },
         },
     ],
     default: 'queryEndpoint',
