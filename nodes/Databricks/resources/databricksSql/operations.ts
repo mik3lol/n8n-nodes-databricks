@@ -14,18 +14,8 @@ export const databricksSqlOperations: INodeProperties = {
         {
             name: 'Execute Query',
             value: 'executeQuery',
-            description: 'Execute a SQL query',
+            description: 'Execute a SQL query and wait for results',
             action: 'Execute a SQL query',
-            routing: {
-                request: {
-                    method: 'POST',
-                    url: '/api/2.0/sql/statements',
-                    body: {
-                        warehouse_id: '={{$parameter.warehouseId}}',
-                        statement: '={{$parameter.query}}',
-                    },
-                },
-            },
         },
     ],
     default: 'executeQuery',

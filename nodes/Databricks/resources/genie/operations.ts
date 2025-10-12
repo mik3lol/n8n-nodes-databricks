@@ -34,7 +34,7 @@ export const genieOperations: INodeProperties = {
             routing: {
                 request: {
                     method: 'GET',
-                    url: '=/api/2.0/genie/conversation-messages/{{$parameter.messageId}}',
+                    url: '=/api/2.0/genie/spaces/{{$parameter.spaceId}}/conversations/{{$parameter.conversationId}}/messages/{{$parameter.messageId}}'
                 },
             },
         },
@@ -46,9 +46,8 @@ export const genieOperations: INodeProperties = {
             routing: {
                 request: {
                     method: 'POST',
-                    url: '/api/2.0/genie/conversations',
+                    url: '=/api/2.0/genie/spaces/{{$parameter.spaceId}}/conversations',
                     body: {
-                        space_id: '={{$parameter.spaceId}}',
                         initial_message: '={{$parameter.initialMessage}}',
                     },
                 },

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-databricks",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Databricks node for n8n",
   "keywords": [
     "n8n",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mike3lol/n8n-nodes-databricks.git"
+    "url": "git+https://github.com/mik3lol/n8n-nodes-databricks.git"
   },
   "main": "dist/index.js",
   "_moduleAliases": {

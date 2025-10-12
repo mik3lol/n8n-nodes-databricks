@@ -11,7 +11,7 @@ export const genieParameters: INodeProperties[] = [
         displayOptions: {
             show: {
                 resource: ['genie'],
-                operation: ['startConversation', 'getSpace', 'createMessage', 'getQueryResults', 'executeMessageQuery'],
+                operation: ['startConversation', 'getSpace', 'createMessage', 'getQueryResults', 'executeMessageQuery', 'getMessage'],
             },
         },
     },
@@ -25,7 +25,7 @@ export const genieParameters: INodeProperties[] = [
         displayOptions: {
             show: {
                 resource: ['genie'],
-                operation: ['createMessage', 'getQueryResults', 'executeMessageQuery'],
+                operation: ['createMessage', 'getQueryResults', 'executeMessageQuery', 'getMessage'],
             },
         },
     },
