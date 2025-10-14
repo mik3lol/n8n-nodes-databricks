@@ -36,10 +36,15 @@ interface CacheEntry {
 // In-memory caches for dropdown options
 const endpointCache: Map<string, CacheEntry> = new Map();
 const warehouseCache: Map<string, CacheEntry> = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const catalogCache: Map<string, CacheEntry> = new Map();
+const schemaCache: Map<string, CacheEntry> = new Map();
+const volumeCache: Map<string, CacheEntry> = new Map();
+const tableCache: Map<string, CacheEntry> = new Map();
+const functionCache: Map<string, CacheEntry> = new Map();
+const CACHE_TTL = 1 * 60 * 1000; // 1 minute in milliseconds
 
 // Helper function to get cache key (includes host to handle multiple accounts)
-function getCacheKey(host: string, type: 'warehouses' | 'endpoints'): string {
+function getCacheKey(host: string, type: 'warehouses' | 'endpoints' | 'catalogs' | 'schemas' | 'volumes' | 'tables' | 'functions'): string {
 	return `${host}:${type}`;
 }
 
@@ -506,8 +511,420 @@ export class Databricks implements INodeType {
 
                 return { results: allResults };
             },
+            async getCatalogs(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+                const credentials = await this.getCredentials('databricks') as DatabricksCredentials;
+                const host = credentials.host.replace(/\/$/, '');
+                const cacheKey = getCacheKey(host, 'catalogs');
+                
+                // Check cache first
+                let catalogs: Array<{ name: string; comment?: string }> = [];
+                const cachedEntry = catalogCache.get(cacheKey);
+                
+                if (isCacheValid(cachedEntry)) {
+                    catalogs = cachedEntry!.data;
+                } else {
+                    // Fetch from API
+                    const response = await this.helpers.httpRequest({
+                        method: 'GET',
+                        url: `${host}/api/2.1/unity-catalog/catalogs`,
+                        headers: {
+                            Authorization: `Bearer ${credentials.token}`,
+                            'Accept': 'application/json',
+                        },
+                        json: true,
+                    }) as { catalogs?: Array<{ name: string; comment?: string }> };
+
+                    catalogs = response.catalogs ?? [];
+                    
+                    // Store in cache
+                    catalogCache.set(cacheKey, {
+                        data: catalogs,
+                        timestamp: Date.now(),
+                    });
+                }
+
+                const allResults = catalogs.map((catalog) => ({
+                    name: catalog.name,
+                    value: catalog.name,
+                    url: `${host}/explore/data/${catalog.name}`,
+                }));
+
+                // Apply client-side filter
+                if (filter) {
+                    const filterLower = filter.toLowerCase();
+                    const filteredResults = allResults.filter((result) =>
+                        result.name.toLowerCase().includes(filterLower)
+                    );
+                    return { results: filteredResults };
+                }
+
+                return { results: allResults };
+            },
+            async getSchemas(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+                const credentials = await this.getCredentials('databricks') as DatabricksCredentials;
+                const host = credentials.host.replace(/\/$/, '');
+                
+                // Try to get the currently selected catalog
+                let selectedCatalog: string | undefined;
+                try {
+                    const catalogParam = this.getCurrentNodeParameter('catalogName') as any;
+                    // Extract value from resourceLocator or string
+                    selectedCatalog = typeof catalogParam === 'object' ? catalogParam.value : catalogParam;
+                    
+                    // Remove whitespace and check if empty
+                    if (selectedCatalog) {
+                        selectedCatalog = selectedCatalog.trim();
+                        if (selectedCatalog === '') {
+                            selectedCatalog = undefined;
+                        }
+                    }
+                } catch (e) {
+                    // Catalog parameter not found or not yet set
+                    selectedCatalog = undefined;
+                }
+                
+                let allSchemas: Array<{ name: string; value: string; url?: string }> = [];
+                
+                if (selectedCatalog) {
+                    // Catalog is selected - fetch only schemas for this catalog (fast!)
+                    const cacheKey = `${getCacheKey(host, 'schemas')}:${selectedCatalog}`;
+                    const cachedEntry = schemaCache.get(cacheKey);
+                    
+                    if (isCacheValid(cachedEntry)) {
+                        allSchemas = cachedEntry!.data;
+                    } else {
+                        try {
+                            const schemasResponse = await this.helpers.httpRequest({
+                                method: 'GET',
+                                url: `${host}/api/2.1/unity-catalog/schemas?catalog_name=${selectedCatalog}`,
+                                headers: {
+                                    Authorization: `Bearer ${credentials.token}`,
+                                    'Accept': 'application/json',
+                                },
+                                json: true,
+                            }) as { schemas?: Array<{ name: string }> };
+
+                            const schemas = schemasResponse.schemas ?? [];
+                            
+                            schemas.forEach((schema) => {
+                                allSchemas.push({
+                                    name: schema.name,
+                                    value: schema.name,
+                                    url: `${host}/explore/data/${selectedCatalog}/${schema.name}`,
+                                });
+                            });
+                            
+                            // Cache per catalog for 1 minute
+                            schemaCache.set(cacheKey, {
+                                data: allSchemas,
+                                timestamp: Date.now(),
+                            });
+                        } catch (e) {
+                            // If error fetching schemas for this catalog, return empty
+                            return { 
+                                results: [{ 
+                                    name: `Error loading schemas for catalog: ${selectedCatalog}`,
+                                    value: '',
+                                }] 
+                            };
+                        }
+                    }
+                } else {
+                    // No catalog selected yet - show helpful message
+                    return { 
+                        results: [{ 
+                            name: 'Please select a catalog first',
+                            value: '',
+                        }] 
+                    };
+                }
+
+                // Apply filter if provided
+                if (filter) {
+                    const filterLower = filter.toLowerCase();
+                    const filteredResults = allSchemas.filter((result) =>
+                        result.name.toLowerCase().includes(filterLower)
+                    );
+                    return { results: filteredResults };
+                }
+
+                return { results: allSchemas };
+            },
+            async getVolumes(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+                const credentials = await this.getCredentials('databricks') as DatabricksCredentials;
+                const host = credentials.host.replace(/\/$/, '');
+                const cacheKey = getCacheKey(host, 'volumes');
+                
+                // Check cache first
+                let allVolumes: Array<{ name: string; value: string; description: string; url?: string }> = [];
+                const cachedEntry = volumeCache.get(cacheKey);
+                
+                if (isCacheValid(cachedEntry)) {
+                    allVolumes = cachedEntry!.data;
+                } else {
+                    // Fetch all catalogs first
+                    const catalogsResponse = await this.helpers.httpRequest({
+                        method: 'GET',
+                        url: `${host}/api/2.1/unity-catalog/catalogs`,
+                        headers: {
+                            Authorization: `Bearer ${credentials.token}`,
+                            'Accept': 'application/json',
+                        },
+                        json: true,
+                    }) as { catalogs?: Array<{ name: string }> };
+
+                    const catalogs = catalogsResponse.catalogs ?? [];
+
+                    // For each catalog, fetch schemas and volumes
+                    for (const catalog of catalogs) {
+                        try {
+                            const schemasResponse = await this.helpers.httpRequest({
+                                method: 'GET',
+                                url: `${host}/api/2.1/unity-catalog/schemas?catalog_name=${catalog.name}`,
+                                headers: {
+                                    Authorization: `Bearer ${credentials.token}`,
+                                    'Accept': 'application/json',
+                                },
+                                json: true,
+                            }) as { schemas?: Array<{ name: string }> };
+
+                            const schemas = schemasResponse.schemas ?? [];
+
+                            for (const schema of schemas) {
+                                try {
+                                    const volumesResponse = await this.helpers.httpRequest({
+                                        method: 'GET',
+                                        url: `${host}/api/2.1/unity-catalog/volumes?catalog_name=${catalog.name}&schema_name=${schema.name}`,
+                                        headers: {
+                                            Authorization: `Bearer ${credentials.token}`,
+                                            'Accept': 'application/json',
+                                        },
+                                        json: true,
+                                    }) as { volumes?: Array<{ name: string; volume_type?: string }> };
+
+                                    const volumes = volumesResponse.volumes ?? [];
+                                    
+                                    volumes.forEach((volume) => {
+                                        const fullPath = `${catalog.name}.${schema.name}.${volume.name}`;
+                                        allVolumes.push({
+                                            name: fullPath,
+                                            value: fullPath,
+                                            description: `${catalog.name} / ${schema.name}${volume.volume_type ? ` (${volume.volume_type})` : ''}`,
+                                            url: `${host}/explore/data/${catalog.name}/${schema.name}/${volume.name}`,
+                                        });
+                                    });
+                                } catch (e) {
+                                    // Skip if can't access volumes in this schema
+                                }
+                            }
+                        } catch (e) {
+                            // Skip if can't access schemas in this catalog
+                        }
+                    }
+
+                    // Cache the results
+                    volumeCache.set(cacheKey, {
+                        data: allVolumes,
+                        timestamp: Date.now(),
+                    });
+                }
+
+                // Apply filter if provided
+                if (filter) {
+                    const filterLower = filter.toLowerCase();
+                    const filteredResults = allVolumes.filter((result) =>
+                        result.name.toLowerCase().includes(filterLower) ||
+                        result.description.toLowerCase().includes(filterLower)
+                    );
+                    return { results: filteredResults };
+                }
+
+                return { results: allVolumes };
+            },
+            async getTables(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+                const credentials = await this.getCredentials('databricks') as DatabricksCredentials;
+                const host = credentials.host.replace(/\/$/, '');
+                const cacheKey = getCacheKey(host, 'tables');
+                
+                // Check cache first
+                let allTables: Array<{ name: string; value: string; description: string; url?: string }> = [];
+                const cachedEntry = tableCache.get(cacheKey);
+                
+                if (isCacheValid(cachedEntry)) {
+                    allTables = cachedEntry!.data;
+                } else {
+                    // Fetch all catalogs first
+                    const catalogsResponse = await this.helpers.httpRequest({
+                        method: 'GET',
+                        url: `${host}/api/2.1/unity-catalog/catalogs`,
+                        headers: {
+                            Authorization: `Bearer ${credentials.token}`,
+                            'Accept': 'application/json',
+                        },
+                        json: true,
+                    }) as { catalogs?: Array<{ name: string }> };
+
+                    const catalogs = catalogsResponse.catalogs ?? [];
+
+                    // For each catalog, fetch schemas and tables
+                    for (const catalog of catalogs) {
+                        try {
+                            const schemasResponse = await this.helpers.httpRequest({
+                                method: 'GET',
+                                url: `${host}/api/2.1/unity-catalog/schemas?catalog_name=${catalog.name}`,
+                                headers: {
+                                    Authorization: `Bearer ${credentials.token}`,
+                                    'Accept': 'application/json',
+                                },
+                                json: true,
+                            }) as { schemas?: Array<{ name: string }> };
+
+                            const schemas = schemasResponse.schemas ?? [];
+
+                            for (const schema of schemas) {
+                                try {
+                                    const tablesResponse = await this.helpers.httpRequest({
+                                        method: 'GET',
+                                        url: `${host}/api/2.1/unity-catalog/tables?catalog_name=${catalog.name}&schema_name=${schema.name}`,
+                                        headers: {
+                                            Authorization: `Bearer ${credentials.token}`,
+                                            'Accept': 'application/json',
+                                        },
+                                        json: true,
+                                    }) as { tables?: Array<{ name: string; table_type?: string }> };
+
+                                    const tables = tablesResponse.tables ?? [];
+                                    
+                                    tables.forEach((table) => {
+                                        const fullPath = `${catalog.name}.${schema.name}.${table.name}`;
+                                        allTables.push({
+                                            name: fullPath,
+                                            value: fullPath,
+                                            description: `${catalog.name} / ${schema.name}${table.table_type ? ` (${table.table_type})` : ''}`,
+                                            url: `${host}/explore/data/${catalog.name}/${schema.name}/${table.name}`,
+                                        });
+                                    });
+                                } catch (e) {
+                                    // Skip if can't access tables in this schema
+                                }
+                            }
+                        } catch (e) {
+                            // Skip if can't access schemas in this catalog
+                        }
+                    }
+
+                    // Cache the results
+                    tableCache.set(cacheKey, {
+                        data: allTables,
+                        timestamp: Date.now(),
+                    });
+                }
+
+                // Apply filter if provided
+                if (filter) {
+                    const filterLower = filter.toLowerCase();
+                    const filteredResults = allTables.filter((result) =>
+                        result.name.toLowerCase().includes(filterLower) ||
+                        result.description.toLowerCase().includes(filterLower)
+                    );
+                    return { results: filteredResults };
+                }
+
+                return { results: allTables };
+            },
+            async getFunctions(this: ILoadOptionsFunctions, filter?: string): Promise<INodeListSearchResult> {
+                const credentials = await this.getCredentials('databricks') as DatabricksCredentials;
+                const host = credentials.host.replace(/\/$/, '');
+                const cacheKey = getCacheKey(host, 'functions');
+                
+                // Check cache first
+                let allFunctions: Array<{ name: string; value: string; description: string; url?: string }> = [];
+                const cachedEntry = functionCache.get(cacheKey);
+                
+                if (isCacheValid(cachedEntry)) {
+                    allFunctions = cachedEntry!.data;
+                } else {
+                    // Fetch all catalogs first
+                    const catalogsResponse = await this.helpers.httpRequest({
+                        method: 'GET',
+                        url: `${host}/api/2.1/unity-catalog/catalogs`,
+                        headers: {
+                            Authorization: `Bearer ${credentials.token}`,
+                            'Accept': 'application/json',
+                        },
+                        json: true,
+                    }) as { catalogs?: Array<{ name: string }> };
+
+                    const catalogs = catalogsResponse.catalogs ?? [];
+
+                    // For each catalog, fetch schemas and functions
+                    for (const catalog of catalogs) {
+                        try {
+                            const schemasResponse = await this.helpers.httpRequest({
+                                method: 'GET',
+                                url: `${host}/api/2.1/unity-catalog/schemas?catalog_name=${catalog.name}`,
+                                headers: {
+                                    Authorization: `Bearer ${credentials.token}`,
+                                    'Accept': 'application/json',
+                                },
+                                json: true,
+                            }) as { schemas?: Array<{ name: string }> };
+
+                            const schemas = schemasResponse.schemas ?? [];
+
+                            for (const schema of schemas) {
+                                try {
+                                    const functionsResponse = await this.helpers.httpRequest({
+                                        method: 'GET',
+                                        url: `${host}/api/2.1/unity-catalog/functions?catalog_name=${catalog.name}&schema_name=${schema.name}`,
+                                        headers: {
+                                            Authorization: `Bearer ${credentials.token}`,
+                                            'Accept': 'application/json',
+                                        },
+                                        json: true,
+                                    }) as { functions?: Array<{ name: string; data_type?: string }> };
+
+                                    const functions = functionsResponse.functions ?? [];
+                                    
+                                    functions.forEach((func) => {
+                                        const fullPath = `${catalog.name}.${schema.name}.${func.name}`;
+                                        allFunctions.push({
+                                            name: fullPath,
+                                            value: fullPath,
+                                            description: `${catalog.name} / ${schema.name}${func.data_type ? ` → ${func.data_type}` : ''}`,
+                                            url: `${host}/explore/data/${catalog.name}/${schema.name}/${func.name}`,
+                                        });
+                                    });
+                                } catch (e) {
+                                    // Skip if can't access functions in this schema
+                                }
+                            }
+                        } catch (e) {
+                            // Skip if can't access schemas in this catalog
+                        }
+                    }
+
+                    // Cache the results
+                    functionCache.set(cacheKey, {
+                        data: allFunctions,
+                        timestamp: Date.now(),
+                    });
+                }
+
+                // Apply filter if provided
+                if (filter) {
+                    const filterLower = filter.toLowerCase();
+                    const filteredResults = allFunctions.filter((result) =>
+                        result.name.toLowerCase().includes(filterLower) ||
+                        result.description.toLowerCase().includes(filterLower)
+                    );
+                    return { results: filteredResults };
+                }
+
+                return { results: allFunctions };
+            },
         },
-    };
+  };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
       const items = this.getInputData();
@@ -1049,7 +1466,7 @@ export class Databricks implements INodeType {
 
                   // Return each row as a separate item (n8n convention)
                   formattedResults.forEach(row => {
-                      returnData.push({
+                  returnData.push({
                           json: row,
                           pairedItem: { item: i },
                       });
@@ -1188,10 +1605,289 @@ export class Databricks implements INodeType {
                       }
                       throw apiError;
                   }
-              } else {
-                  this.logger.debug('Passing through unhandled resource', { resource });
+              } else if (resource === 'unityCatalog') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  
+                  // Helper function to extract value from resourceLocator
+                  const extractValue = (param: any): string => {
+                      if (typeof param === 'object' && param !== null) {
+                          return param.value || '';
+                      }
+                      return param || '';
+                  };
+                  
+                  let response: any;
+                  
+                  // Volume Operations
+            if (operation === 'createVolume') {
+                const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                const schemaName = extractValue(this.getNodeParameter('schemaName', i));
+                      const volumeName = this.getNodeParameter('volumeName', i) as string;
+                      const volumeType = this.getNodeParameter('volumeType', i) as string;
+                      const additionalFields = this.getNodeParameter('additionalFields', i, {}) as any;
+                      
+                      const body: any = {
+                          catalog_name: catalogName,
+                          schema_name: schemaName,
+                          name: volumeName,
+                          volume_type: volumeType,
+                      };
+                      
+                      if (additionalFields.comment) {
+                          body.comment = additionalFields.comment;
+                      }
+                      if (additionalFields.storage_location) {
+                          body.storage_location = additionalFields.storage_location;
+                      }
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'POST',
+                          url: `${host}/api/2.1/unity-catalog/volumes`,
+                          body,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                              'Content-Type': 'application/json',
+                          },
+                          json: true,
+                      });
+            } else if (operation === 'deleteVolume') {
+                const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                const schemaName = extractValue(this.getNodeParameter('schemaName', i));
+                const volumeName = this.getNodeParameter('volumeName', i) as string;
+                const fullName = `${catalogName}.${schemaName}.${volumeName}`;
+                
+                await this.helpers.httpRequest({
+                    method: 'DELETE',
+                    url: `${host}/api/2.1/unity-catalog/volumes/${fullName}`,
+                    headers: {
+                        Authorization: `Bearer ${credentials.token}`,
+                    },
+                    json: true,
+                });
+                
+                // Set a success response instead of empty
+                response = {
+                    success: true,
+                    message: 'Volume deleted successfully',
+                    volumeName: fullName,
+                };
+            } else if (operation === 'getVolume') {
+                const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                const schemaName = extractValue(this.getNodeParameter('schemaName', i));
+                const volumeName = this.getNodeParameter('volumeName', i) as string;
+                const fullName = `${catalogName}.${schemaName}.${volumeName}`;
+                
+                response = await this.helpers.httpRequest({
+                    method: 'GET',
+                    url: `${host}/api/2.1/unity-catalog/volumes/${fullName}`,
+                    headers: {
+                        Authorization: `Bearer ${credentials.token}`,
+                    },
+                    json: true,
+                });
+            } else if (operation === 'listVolumes') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i, ''));
+                      const schemaName = extractValue(this.getNodeParameter('schemaName', i, ''));
+                      
+                      const qs: any = {};
+                      if (catalogName) qs.catalog_name = catalogName;
+                      if (schemaName) qs.schema_name = schemaName;
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/volumes`,
+                          qs,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  }
+                  // Table Operations
+                  else if (operation === 'getTable') {
+                      const fullName = extractValue(this.getNodeParameter('fullName', i));
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/tables/${fullName}`,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  } else if (operation === 'listTables') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i, ''));
+                      const schemaName = extractValue(this.getNodeParameter('schemaName', i, ''));
+                      
+                      const qs: any = {};
+                      if (catalogName) qs.catalog_name = catalogName;
+                      if (schemaName) qs.schema_name = schemaName;
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/tables`,
+                          qs,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  }
+                  // Function Operations
+            else if (operation === 'createFunction') {
+                const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                const schemaName = extractValue(this.getNodeParameter('schemaName', i));
+                      const functionName = this.getNodeParameter('functionName', i) as string;
+                      const inputParams = this.getNodeParameter('inputParams', i) as any;
+                      const returnType = this.getNodeParameter('returnType', i) as string;
+                      const routineBody = this.getNodeParameter('routineBody', i) as string;
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'POST',
+                          url: `${host}/api/2.1/unity-catalog/functions`,
+                          body: {
+                              name: functionName,
+                              catalog_name: catalogName,
+                              schema_name: schemaName,
+                              input_params: inputParams,
+                              data_type: returnType,
+                              routine_body: routineBody,
+                          },
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                              'Content-Type': 'application/json',
+                          },
+                          json: true,
+                      });
+            } else if (operation === 'deleteFunction') {
+                const fullName = extractValue(this.getNodeParameter('fullName', i));
+                
+                await this.helpers.httpRequest({
+                    method: 'DELETE',
+                    url: `${host}/api/2.1/unity-catalog/functions/${fullName}`,
+                    headers: {
+                        Authorization: `Bearer ${credentials.token}`,
+                    },
+                    json: true,
+                });
+                
+                // Set a success response instead of empty
+                response = {
+                    success: true,
+                    message: 'Function deleted successfully',
+                    functionName: fullName,
+                };
+            } else if (operation === 'getFunction') {
+                      const fullName = extractValue(this.getNodeParameter('fullName', i));
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/functions/${fullName}`,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  } else if (operation === 'listFunctions') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i, ''));
+                      const schemaName = extractValue(this.getNodeParameter('schemaName', i, ''));
+                      
+                      const qs: any = {};
+                      if (catalogName) qs.catalog_name = catalogName;
+                      if (schemaName) qs.schema_name = schemaName;
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/functions`,
+                          qs,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  }
+                  // Catalog Operations
+                  else if (operation === 'createCatalog') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                      const comment = this.getNodeParameter('comment', i, '') as string;
+                      
+                      const body: any = {
+                          name: catalogName,
+                      };
+                      if (comment) {
+                          body.comment = comment;
+                      }
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'POST',
+                          url: `${host}/api/2.1/unity-catalog/catalogs`,
+                          body,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                              'Content-Type': 'application/json',
+                          },
+                          json: true,
+                      });
+                  } else if (operation === 'getCatalog') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/catalogs/${catalogName}`,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  } else if (operation === 'updateCatalog') {
+                      const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                      const comment = this.getNodeParameter('comment', i, '') as string;
+                      
+                      response = await this.helpers.httpRequest({
+                          method: 'PATCH',
+                          url: `${host}/api/2.1/unity-catalog/catalogs/${catalogName}`,
+                          body: {
+                              comment,
+                          },
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                              'Content-Type': 'application/json',
+                          },
+                          json: true,
+                      });
+            } else if (operation === 'deleteCatalog') {
+                const catalogName = extractValue(this.getNodeParameter('catalogName', i));
+                
+                await this.helpers.httpRequest({
+                    method: 'DELETE',
+                    url: `${host}/api/2.1/unity-catalog/catalogs/${catalogName}`,
+                    headers: {
+                        Authorization: `Bearer ${credentials.token}`,
+                    },
+                    json: true,
+                });
+                
+                // Set a success response instead of empty
+                response = {
+                    success: true,
+                    message: 'Catalog deleted successfully',
+                    catalogName: catalogName,
+                };
+            } else if (operation === 'listCatalogs') {
+                      response = await this.helpers.httpRequest({
+                          method: 'GET',
+                          url: `${host}/api/2.1/unity-catalog/catalogs`,
+                          headers: {
+                              Authorization: `Bearer ${credentials.token}`,
+                          },
+                          json: true,
+                      });
+                  }
+                  
                   returnData.push({
-                      json: items[i].json,
+                      json: response || {},
+                      pairedItem: { item: i },
                   });
               }
           } catch (error) {
