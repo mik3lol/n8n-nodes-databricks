@@ -1889,6 +1889,113 @@ export class Databricks implements INodeType {
                       json: response || {},
                       pairedItem: { item: i },
                   });
+              } else if (resource === 'vectorSearch' && operation === 'queryIndex') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const indexName = this.getNodeParameter('indexName', i) as string;
+                  const queryType = this.getNodeParameter('queryType', i) as string;
+                  const searchMode = this.getNodeParameter('searchMode', i, 'HYBRID') as string;
+                  const numResults = this.getNodeParameter('numResults', i, 10) as number;
+                  const columnsStr = this.getNodeParameter('columns', i, '') as string;
+                  const options = this.getNodeParameter('options', i, {}) as any;
+                  const enableReranking = this.getNodeParameter('enableReranking', i, false) as boolean;
+                  const rerankerModel = enableReranking ? this.getNodeParameter('rerankerModel', i) as string : undefined;
+                  const columnsToRerank = enableReranking ? this.getNodeParameter('columnsToRerank', i) as string : undefined;
+                  
+                  const body: any = {
+                      num_results: numResults,
+                      query_type: searchMode,
+                  };
+                  
+                  // Add query (text or vector)
+                  if (queryType === 'text') {
+                      body.query_text = this.getNodeParameter('queryText', i) as string;
+                  } else {
+                      body.query_vector = this.getNodeParameter('queryVector', i) as number[];
+                  }
+                  
+                  // Add columns - required by API
+                  body.columns = columnsStr.split(',').map(col => col.trim()).filter(Boolean);
+                  
+                  // Add optional parameters
+                  if (options.filterExpression) {
+                      body.filters_json = options.filterExpression;
+                  }
+                  if (options.scoreThreshold) {
+                      body.score_threshold = options.scoreThreshold;
+                  }
+                  
+                  // Add reranker configuration if enabled
+                  if (enableReranking) {
+                      body.reranker = {
+                          model: rerankerModel || 'databricks_reranker',
+                          parameters: {
+                              columns_to_rerank: columnsToRerank!.split(',').map((col: string) => col.trim()).filter(Boolean),
+                          },
+                      };
+                  }
+                  
+                  this.logger.debug('Querying vector search index', {
+                      indexName,
+                      queryType,
+                      searchMode,
+                      body: JSON.stringify(body, null, 2),
+                  });
+                  
+                  const response = await this.helpers.httpRequest({
+                      method: 'POST',
+                      url: `${host}/api/2.0/vector-search/indexes/${indexName}/query`,
+                      body,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                          'Content-Type': 'application/json',
+                      },
+                      json: true,
+                  });
+                  
+                  returnData.push({
+                      json: response,
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'vectorSearch' && operation === 'getIndex') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const indexName = this.getNodeParameter('indexName', i) as string;
+                  
+                  const response = await this.helpers.httpRequest({
+                      method: 'GET',
+                      url: `${host}/api/2.0/vector-search/indexes/${indexName}`,
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      json: true,
+                  });
+                  
+                  returnData.push({
+                      json: response,
+                      pairedItem: { item: i },
+                  });
+              } else if (resource === 'vectorSearch' && operation === 'listIndexes') {
+                  const credentials = (await this.getCredentials('databricks')) as DatabricksCredentials;
+                  const host = credentials.host.replace(/\/$/, '');
+                  const endpointName = this.getNodeParameter('endpointName', i) as string;
+                  
+                  const response = await this.helpers.httpRequest({
+                      method: 'GET',
+                      url: `${host}/api/2.0/vector-search/indexes`,
+                      qs: {
+                          endpoint_name: endpointName,
+                      },
+                      headers: {
+                          Authorization: `Bearer ${credentials.token}`,
+                      },
+                      json: true,
+                  });
+                  
+                  returnData.push({
+                      json: response,
+                      pairedItem: { item: i },
+                  });
               }
           } catch (error) {
               const currentResource = this.getNodeParameter('resource', i) as string;
