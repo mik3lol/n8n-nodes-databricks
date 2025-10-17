@@ -25,7 +25,11 @@ describe('handleRetrieveOperation', () => {
 	let mockArgs: VectorStoreNodeConstructorArgs<VectorStore>;
 
 	beforeEach(() => {
-		mockContext = mock<ISupplyDataFunctions>();
+		mockContext = mock<ISupplyDataFunctions>({
+			getNodeParameter: jest.fn().mockImplementation((parameterName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
+				return fallbackValue;
+			}),
+		});
 
 		mockEmbeddings = mock<Embeddings>();
 

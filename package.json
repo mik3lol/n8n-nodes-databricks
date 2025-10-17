@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-databricks",
-  "version": "0.1.1",
+  "version": "0.2.6",
   "description": "Databricks node for n8n",
   "keywords": [
     "n8n",
@@ -18,13 +18,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mike3lol/n8n-nodes-databricks.git"
+    "url": "git+https://github.com/mik3lol/n8n-nodes-databricks.git"
   },
   "main": "dist/index.js",
+  "_moduleAliases": {
+    "@utils": "dist/utils"
+  },
   "scripts": {
     "build": "rm -rf dist/ && tsc -p tsconfig.json && tsc-alias -p tsconfig.json && gulp build:icons",
     "start": "node -r module-alias/register dist/index.js",
-    "dev": "tsc --watch",
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:watch": "tsc -p tsconfig.json --watch && tsc-alias -p tsconfig.json --watch",
+    "dev:serve": "NODE_ENV=development ts-node-dev -r tsconfig-paths/register --respawn --inspect --ignore-watch node_modules ./src/index.ts",
     "format": "prettier --write .",
     "lint": "eslint .",
     "lintfix": "eslint . --fix",
@@ -41,7 +46,8 @@
     ],
     "nodes": [
       "dist/nodes/Databricks/Databricks.node.js",
-      "dist/nodes/llms/LmChatDatabricks/LmChatDatabricks.node.js"
+      "dist/nodes/llms/LmChatDatabricks/LmChatDatabricks.node.js",
+      "dist/nodes/embeddings/EmbeddingsDatabricks/EmbeddingsDatabricks.node.js"
     ]
   },
   "dependencies": {
@@ -66,9 +72,13 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.16",
+    "concurrently": "^9.1.2",
     "gulp": "^5.0.0",
     "gulp-cli": "^3.0.0",
     "module-alias": "^2.2.3",
+    "n8n-workflow": "1.86",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
   }
 }

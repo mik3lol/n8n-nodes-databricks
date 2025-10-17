@@ -11,37 +11,39 @@ export const unityCatalogOperations: INodeProperties = {
 		},
 	},
 	options: [
-		// Volume Operations
-		{
-			name: 'Create Volume',
-			value: 'createVolume',
-			description: 'Create a new volume',
-			action: 'Create a volume',
-			routing: {
-				request: {
-					method: 'POST',
-					url: '/api/2.1/unity-catalog/volumes',
-					body: {
-						catalog_name: '={{$parameter.catalog}}',
-						schema_name: '={{$parameter.schema}}',
-						name: '={{$parameter.volumeName}}',
-						volume_type: '={{$parameter.volumeType}}',
-					},
+	// Volume Operations
+	{
+		name: 'Create Volume',
+		value: 'createVolume',
+		description: 'Create a new volume',
+		action: 'Create a volume',
+		routing: {
+			request: {
+				method: 'POST',
+				url: '/api/2.1/unity-catalog/volumes',
+				body: {
+					catalog_name: '={{$parameter.catalogName}}',
+					schema_name: '={{$parameter.schemaName}}',
+					name: '={{$parameter.volumeName}}',
+					volume_type: '={{$parameter.volumeType}}',
+					comment: '={{$parameter.additionalFields.comment}}',
+					storage_location: '={{$parameter.additionalFields.storage_location}}',
 				},
 			},
 		},
-		{
-			name: 'Delete Volume',
-			value: 'deleteVolume',
-			description: 'Delete a volume',
-			action: 'Delete a volume',
-			routing: {
-				request: {
-					method: 'DELETE',
-					url: '=/api/2.1/unity-catalog/volumes/{{$parameter.catalog}}.{{$parameter.schema}}.{{$parameter.volumeName}}',
-				},
+	},
+	{
+		name: 'Delete Volume',
+		value: 'deleteVolume',
+		description: 'Delete a volume',
+		action: 'Delete a volume',
+		routing: {
+			request: {
+				method: 'DELETE',
+				url: '=/api/2.1/unity-catalog/volumes/{{$parameter.fullName}}',
 			},
 		},
+	},
 		{
 			name: 'Get Volume',
 			value: 'getVolume',
@@ -83,22 +85,22 @@ export const unityCatalogOperations: INodeProperties = {
 				},
 			},
 		},
-		{
-			name: 'List Tables',
-			value: 'listTables',
-			description: 'List tables in schema',
-			action: 'List tables',
-			routing: {
-				request: {
-					method: 'GET',
-					url: '/api/2.1/unity-catalog/tables',
-					qs: {
-						catalog_name: '={{$parameter.catalog}}',
-						schema_name: '={{$parameter.schema}}',
-					},
+	{
+		name: 'List Tables',
+		value: 'listTables',
+		description: 'List tables in schema',
+		action: 'List tables',
+		routing: {
+			request: {
+				method: 'GET',
+				url: '/api/2.1/unity-catalog/tables',
+				qs: {
+					catalog_name: '={{$parameter.catalogName}}',
+					schema_name: '={{$parameter.schemaName}}',
 				},
 			},
 		},
+	},
 		// Function Operations
 		{
 			name: 'Create Function',
@@ -144,39 +146,39 @@ export const unityCatalogOperations: INodeProperties = {
 				},
 			},
 		},
-		{
-			name: 'List Functions',
-			value: 'listFunctions',
-			description: 'List functions in schema',
-			action: 'List functions',
-			routing: {
-				request: {
-					method: 'GET',
-					url: '/api/2.1/unity-catalog/functions',
-					qs: {
-						catalog_name: '={{$parameter.catalog}}',
-						schema_name: '={{$parameter.schema}}',
-					},
+	{
+		name: 'List Functions',
+		value: 'listFunctions',
+		description: 'List functions in schema',
+		action: 'List functions',
+		routing: {
+			request: {
+				method: 'GET',
+				url: '/api/2.1/unity-catalog/functions',
+				qs: {
+					catalog_name: '={{$parameter.catalogName}}',
+					schema_name: '={{$parameter.schemaName}}',
 				},
 			},
 		},
-		// Catalog Operations
-		{
-			name: 'Create Catalog',
-			value: 'createCatalog',
-			description: 'Create a new catalog',
-			action: 'Create a catalog',
-			routing: {
-				request: {
-					method: 'POST',
-					url: '/api/2.1/unity-catalog/catalogs',
-					body: {
-						catalog_name: '={{$parameter.catalogName}}',
-						comment: '={{$parameter.comment}}',
-					},
+	},
+	// Catalog Operations
+	{
+		name: 'Create Catalog',
+		value: 'createCatalog',
+		description: 'Create a new catalog',
+		action: 'Create a catalog',
+		routing: {
+			request: {
+				method: 'POST',
+				url: '/api/2.1/unity-catalog/catalogs',
+				body: {
+					name: '={{$parameter.catalogName}}',
+					comment: '={{$parameter.comment}}',
 				},
 			},
 		},
+	},
 		{
 			name: 'Get Catalog',
 			value: 'getCatalog',

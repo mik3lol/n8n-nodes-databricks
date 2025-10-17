@@ -65,11 +65,11 @@ describe('handleUpdateOperation', () => {
 		// Setup context mock
 		mockContext = mock<IExecuteFunctions>();
 		mockContext.getInputData.mockReturnValue(mockInputItems);
-		mockContext.getNodeParameter.mockImplementation((paramName, itemIndex) => {
+		mockContext.getNodeParameter.mockImplementation((paramName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
 			if (paramName === 'id') {
 				return `doc-id-${itemIndex}`;
 			}
-			return undefined;
+			return fallbackValue;
 		});
 
 		// Setup embeddings mock

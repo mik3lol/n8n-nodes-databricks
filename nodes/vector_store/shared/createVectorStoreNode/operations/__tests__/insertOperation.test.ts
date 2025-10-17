@@ -62,7 +62,7 @@ function createMockAbortSignal(aborted = false): AbortSignal {
 
 // Create a mock implementation for getNodeParameter
 function createNodeParameterMock(batchSize?: number) {
-	return (paramName: string, _: number, fallbackValue: any) => {
+	return (paramName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
 		if (paramName === 'embeddingBatchSize' && batchSize !== undefined) {
 			return batchSize;
 		}

@@ -33,7 +33,7 @@ describe('handleLoadOperation', () => {
 		};
 
 		mockContext = mock<IExecuteFunctions>();
-		mockContext.getNodeParameter.mockImplementation((parameterName, _itemIndex, fallbackValue) => {
+		mockContext.getNodeParameter.mockImplementation((parameterName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
 			if (typeof parameterName !== 'string') return fallbackValue;
 			return nodeParameters[parameterName] ?? fallbackValue;
 		});

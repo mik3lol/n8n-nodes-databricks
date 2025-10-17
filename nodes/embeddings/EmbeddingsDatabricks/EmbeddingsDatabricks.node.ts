@@ -11,10 +11,6 @@ import { Embeddings } from '@langchain/core/embeddings';
 import { logWrapper } from '@utils/logWrapper';
 import { getConnectionHintNoticeField } from '@utils/sharedFields';
 
-interface DatabricksEmbeddingsResponse {
-	predictions: number[][];
-}
-
 class DatabricksEmbeddings extends Embeddings {
 	private apiKey: string;
 	private host: string;
@@ -32,14 +28,14 @@ class DatabricksEmbeddings extends Embeddings {
 	}
 
 	async embedDocuments(texts: string[]): Promise<number[][]> {
-		const response = await fetch(`${this.host}/api/2.0/serving-endpoints/${this.endpoint}/invocations`, {
+		const response = await fetch(`${this.host}/serving-endpoints/${this.endpoint}/invocations`, {
 			method: 'POST',
 			headers: {
 				'Authorization': `Bearer ${this.apiKey}`,
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
-				inputs: texts,
+				input: texts,
 			}),
 		});
 
@@ -48,12 +44,23 @@ class DatabricksEmbeddings extends Embeddings {
 			throw new Error(`Databricks API error (${response.status}): ${error}`);
 		}
 
-		const result = await response.json() as DatabricksEmbeddingsResponse;
-		return result.predictions;
+		const result = await response.json();
+		// Handle new API response format
+		if (Array.isArray(result.data)) {
+			return result.data.map((item: any) => item.embedding);
+		}
+		// fallback for old format
+		if (Array.isArray(result.predictions)) {
+			return result.predictions;
+		}
+		throw new Error('Unexpected Databricks embeddings API response format.');
 	}
 
 	async embedQuery(text: string): Promise<number[]> {
 		const embeddings = await this.embedDocuments([text]);
+		if (!embeddings || !embeddings[0]) {
+			throw new Error('No embedding returned from Databricks API. Check your endpoint and input.');
+		}
 		return embeddings[0];
 	}
 }
@@ -65,16 +72,22 @@ export class EmbeddingsDatabricks implements INodeType {
 		icon: { light: 'file:databricks.svg', dark: 'file:databricks.dark.svg' },
 		group: ['transform'],
 		version: 1,
-		description: 'Use Databricks Foundation Models for Embeddings',
+		description: 'Use Embeddings Databricks',
 		defaults: {
 			name: 'Embeddings Databricks',
 		},
 		credentials: [
 			{
-				name: 'databricksApi',
+				name: 'databricks',
 				required: true,
 			},
 		],
+		requestDefaults: {
+			baseURL: '={{$credentials.host}}',
+			headers: {
+				Authorization: '=Bearer {{$credentials.token}}',
+			},
+		},
 		codex: {
 			categories: ['AI'],
 			subcategories: {
@@ -83,7 +96,7 @@ export class EmbeddingsDatabricks implements INodeType {
 			resources: {
 				primaryDocumentation: [
 					{
-						url: 'https://docs.databricks.com/machine-learning/foundation-models/',
+						url: 'https://docs.databricks.com/aws/en/generative-ai/create-query-vector-search',
 					},
 				],
 			},
@@ -95,7 +108,7 @@ export class EmbeddingsDatabricks implements INodeType {
 			getConnectionHintNoticeField([NodeConnectionTypes.AiVectorStore]),
 			{
 				displayName:
-					'Make sure to use the same dimensionality for your vector store as the model you select.',
+					'Make sure the vector store and embedding model have the same dimensionality.',
 				name: 'notice',
 				type: 'notice',
 				default: '',
@@ -103,10 +116,50 @@ export class EmbeddingsDatabricks implements INodeType {
 			{
 				displayName: 'Serving Endpoint',
 				name: 'servingEndpoint',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptions: {
+						routing: {
+							request: {
+								method: 'GET',
+								url: '/api/2.0/serving-endpoints',
+							},
+							output: {
+								postReceive: [
+									{
+										type: 'rootProperty',
+										properties: {
+											property: 'endpoints',
+										},
+									},
+									// {
+									// 	type: 'filter',
+									// 	properties: {
+									// 		pass: '={{$responseItem.config.served_entities?.some(entity => entity.external_model?.task === "llm/v1/embeddings") || $responseItem.config.served_entities?.some(entity => entity.foundation_model?.name?.match(/embedding|embed|text-embedding|vector/i))}}',
+									// 	},
+									// },
+									{
+										type: 'setKeyValue',
+										properties: {
+											name: '={{$responseItem.name}}',
+											value: '={{$responseItem.name}}',
+											description: '={{($responseItem.config.served_entities || []).map(entity => entity.external_model?.name || entity.foundation_model?.name).filter(Boolean).join(", ")}}',
+										},
+									},
+									{
+										type: 'sort',
+										properties: {
+											key: 'name',
+										},
+									},
+								],
+							},
+						},
+					},
+				},
 				default: '',
 				required: true,
-				description: 'Name of the model serving endpoint to use for embeddings',
+				description: 'Name of the embeddings serving endpoint',
 			},
 		],
 	};
@@ -114,7 +167,7 @@ export class EmbeddingsDatabricks implements INodeType {
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		this.logger.debug('Supply data for embeddings Databricks');
 		const servingEndpoint = this.getNodeParameter('servingEndpoint', itemIndex) as string;
-		const credentials = await this.getCredentials('databricksApi');
+		const credentials = await this.getCredentials('databricks');
 
 		// Initialize Databricks embeddings with model serving endpoint
 		const embeddings = new DatabricksEmbeddings({

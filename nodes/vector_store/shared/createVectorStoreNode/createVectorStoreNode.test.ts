@@ -78,7 +78,9 @@ describe('createVectorStoreNode', () => {
 				mode: 'retrieve',
 			};
 			context.getNodeParameter.mockImplementation(
-				(parameterName: string): NodeParameterValueType | object => parameters[parameterName],
+				(parameterName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
+					return parameters[parameterName] ?? fallbackValue;
+				},
 			);
 
 			// ACT
@@ -105,7 +107,9 @@ describe('createVectorStoreNode', () => {
 				includeDocumentMetadata: true,
 			};
 			context.getNodeParameter.mockImplementation(
-				(parameterName: string): NodeParameterValueType | object => parameters[parameterName],
+				(parameterName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
+					return parameters[parameterName] ?? fallbackValue;
+				},
 			);
 
 			// ACT
@@ -140,7 +144,9 @@ describe('createVectorStoreNode', () => {
 				includeDocumentMetadata: false,
 			};
 			context.getNodeParameter.mockImplementation(
-				(parameterName: string): NodeParameterValueType | object => parameters[parameterName],
+				(parameterName: string, itemIndex: number, fallbackValue?: any, options?: any): any => {
+					return parameters[parameterName] ?? fallbackValue;
+				},
 			);
 
 			// ACT
