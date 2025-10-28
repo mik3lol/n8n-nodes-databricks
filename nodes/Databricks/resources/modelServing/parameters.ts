@@ -7,7 +7,7 @@ export const modelServingParameters: INodeProperties[] = [
         type: 'resourceLocator',
         default: { mode: 'list', value: '' },
         required: true,
-        description: 'The model serving endpoint to query. The input format will be automatically detected from the endpoint schema.',
+        description: 'The model serving endpoint to query. The input format will be automatically detected from the endpoint schema. The node will fetch the endpoint\'s OpenAPI schema to determine the correct invocation URL.',
         displayOptions: {
             show: {
                 resource: ['modelServing'],
@@ -44,6 +44,7 @@ export const modelServingParameters: INodeProperties[] = [
                 name: 'url',
                 type: 'string',
                 placeholder: 'e.g. https://adb-xxx.cloud.databricks.com/ml/endpoints/my-endpoint',
+                hint: 'Use the endpoint page URL (/ml/endpoints/), not the /serving-endpoints/ invocation URL.',
                 extractValue: {
                     type: 'regex',
                     regex: 'https://[^/]+/ml/endpoints/([a-zA-Z0-9_-]+)',
