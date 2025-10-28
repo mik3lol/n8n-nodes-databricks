@@ -7,7 +7,7 @@ export const modelServingParameters: INodeProperties[] = [
         type: 'resourceLocator',
         default: { mode: 'list', value: '' },
         required: true,
-        description: 'The model serving endpoint to query. The input format will be automatically detected from the endpoint schema.',
+        description: 'The model serving endpoint to query. The input format will be automatically detected from the endpoint schema. The node will fetch the endpoint\'s OpenAPI schema to determine the correct invocation URL.',
         displayOptions: {
             show: {
                 resource: ['modelServing'],
@@ -43,10 +43,11 @@ export const modelServingParameters: INodeProperties[] = [
                 displayName: 'By URL',
                 name: 'url',
                 type: 'string',
-                placeholder: 'e.g. https://adb-xxx.cloud.databricks.com/serving-endpoints/my-endpoint',
+                placeholder: 'e.g. https://adb-xxx.cloud.databricks.com/ml/endpoints/my-endpoint',
+                hint: 'Use the endpoint page URL (/ml/endpoints/), not the /serving-endpoints/ invocation URL.',
                 extractValue: {
                     type: 'regex',
-                    regex: 'https://[^/]+/serving-endpoints/([a-zA-Z0-9_-]+)',
+                    regex: 'https://[^/]+/ml/endpoints/([a-zA-Z0-9_-]+)',
                 },
             },
         ],
@@ -61,7 +62,7 @@ export const modelServingParameters: INodeProperties[] = [
         default: '{\n  "messages": [\n    {\n      "role": "user",\n      "content": "Hello!"\n    }\n  ]\n}',
         placeholder: 'Request body will be validated against the endpoint schema',
         description: 'Request body in JSON format. The node automatically detects the expected format from the endpoint\'s OpenAPI schema and validates your input at runtime.',
-        hint: 'Common formats: {"messages": [...]} for chat models, {"prompt": "..."} for completions, {"input": [...]} for embeddings. If validation fails, you\'ll receive an error message with the correct format example.',
+        hint: 'See your model serving endpoint for example, request body format.',
         displayOptions: {
             show: {
                 resource: ['modelServing'],

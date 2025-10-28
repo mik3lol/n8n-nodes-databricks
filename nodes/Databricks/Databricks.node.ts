@@ -22,6 +22,7 @@ import {
   vectorSearchOperations,
   vectorSearchParameters,
 } from './resources';
+import mime from 'mime-types';
 
 interface DatabricksCredentials {
   host: string;
@@ -492,7 +493,7 @@ export class Databricks implements INodeType {
                     return {
                         name: endpoint.name,
                         value: endpoint.name,
-                        url: `${host}/serving-endpoints/${endpoint.name}`,
+                        url: `${host}/ml/endpoints/${endpoint.name}`,
                         description: modelNames || 'Model serving endpoint',
                     };
                 });
@@ -1030,8 +1031,13 @@ export class Databricks implements INodeType {
                       // Extract filename from filePath
                       const fileName = filePath.split('/').pop() || 'downloaded-file';
                       
-                      // Get content type from response headers
-                      const contentType = response.headers['content-type'] || 'application/octet-stream';
+                      // Get content type from response headers, or detect from file extension
+                      let contentType = response.headers['content-type'];
+                      if (!contentType || contentType === 'application/octet-stream') {
+                          // Detect MIME type from file extension
+                          const detectedType = mime.lookup(fileName);
+                          contentType = detectedType || 'application/octet-stream';
+                      }
 
                       // Convert arraybuffer to buffer
                       const buffer = Buffer.from(response.body as ArrayBuffer);
