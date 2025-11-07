@@ -9,6 +9,7 @@ export class Databricks implements ICredentialType {
     name = 'databricks';
     displayName = 'Databricks';
     documentationUrl = 'https://docs.databricks.com/dev-tools/api/latest/authentication.html';
+    icon = 'file:databricks.svg' as const;
     properties: INodeProperties[] = [
         {
             displayName: 'Host',
