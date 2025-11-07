@@ -51,27 +51,6 @@ export class DatabricksAiAgent implements INodeType {
 			}}`,
 		outputs: ['main'],
 		properties: [
-			{
-				displayName:
-					'Tip: Get a feel for agents with our quick <a href="https://docs.n8n.io/advanced-ai/intro-tutorial/" target="_blank">tutorial</a> or see an <a href="/workflows/templates/1954" target="_blank">example</a> of how this node works',
-				name: 'aiAgentStarterCallout',
-				type: 'notice' as any,
-				default: '',
-			},
-			{
-				// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
-				displayName: 'Get started faster with our',
-				name: 'preBuiltAgentsCallout',
-				type: 'notice' as any,
-				typeOptions: {
-					calloutAction: {
-						label: 'pre-built agents',
-						icon: 'bot',
-						type: 'openPreBuiltAgentsCollection',
-					},
-				},
-				default: '',
-			},
 			promptTypeOptions,
 			{
 				...textFromPreviousNode,
