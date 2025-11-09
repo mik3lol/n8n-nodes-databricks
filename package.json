@@ -48,13 +48,14 @@
       "dist/nodes/Databricks/Databricks.node.js",
       "dist/nodes/llms/LmChatDatabricks/LmChatDatabricks.node.js",
       "dist/nodes/embeddings/EmbeddingsDatabricks/EmbeddingsDatabricks.node.js",
-      "dist/nodes/vector_store/VectorStoreDatabricks/VectorStoreDatabricks.node.js"
+      "dist/nodes/vector_store/VectorStoreDatabricks/VectorStoreDatabricks.node.js",
+      "dist/nodes/agents/DatabricksAiAgent/DatabricksAiAgent.node.js"
     ]
   },
   "dependencies": {
     "@langchain/community": "0.3.41",
     "@langchain/core": "^0.3.43",
-    "@langchain/openai": "0.3.17",
+    "@langchain/openai": "^0.4.0",
     "@langchain/textsplitters": "0.1.0",
     "@n8n/json-schema-to-zod": "^1.1.0",
     "@types/json-schema": "^7.0.15",
@@ -64,10 +65,13 @@
     "help": "^3.0.2",
     "jest-mock-extended": "^4.0.0-beta1",
     "lodash": "^4.17.21",
+    "log4js": "^6.9.1",
     "mime-types": "^3.0.1",
+    "mlflow-tracing": "0.1.0",
     "n8n-core": "^0.125.0",
     "n8n-workflow": "1.86",
     "node-fetch": "^2.7.0",
+    "openai": "^4.95.1",
     "tmp-promise": "3.0.3",
     "tsc-alias": "^1.8.15",
     "zod": "^3.21.4"
